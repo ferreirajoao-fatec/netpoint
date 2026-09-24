@@ -227,6 +227,25 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
   );
 }
 
+/** Opção selecionável em formato de pílula — usada nos filtros das listas. */
+export function Chip({ label, icon, active, onPress }: { label: string; icon?: IconName; active?: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!active }}
+      style={({ pressed }) => [
+        styles.chip,
+        { backgroundColor: active ? colors.primarySoft : colors.surface, borderColor: active ? colors.primary : colors.border, opacity: pressed ? 0.75 : 1 },
+      ]}
+    >
+      {icon && <MaterialCommunityIcons name={icon} size={18} color={active ? colors.primary : colors.textMuted} />}
+      <Text style={{ color: active ? colors.primary : colors.text, fontSize: 14, fontWeight: '600' }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 // ------------------------------------------------------------------ Listas e informações
 
 export function ListItem({
@@ -388,5 +407,14 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   segmented: { flexDirection: 'row', borderRadius: radius.md, padding: 4, gap: 4 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    minHeight: 38,
+  },
   segment: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.sm },
 });

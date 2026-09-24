@@ -3,6 +3,9 @@
     "name": "NetPoint",
     "slug": "netpoint",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -48,6 +51,9 @@
         "projectId": "356c3c95-f2bb-474d-a911-495165ba8523"
       }
     },
-    "owner": "joaoferreira_jgf"
+    "owner": "joaoferreira_jgf",
+    "updates": {
+      "url": "https://u.expo.dev/356c3c95-f2bb-474d-a911-495165ba8523"
+    }
   }
 }

@@ -7,11 +7,13 @@
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://netpoint-api.vercel.app/api" }
+      "channel": "preview",
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_API_URL": "https://netpoint-api.vercel.app/api" }
+      "channel": "production",
+      "environment": "production"
     }
   }
 }

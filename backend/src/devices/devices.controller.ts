@@ -70,11 +70,17 @@ export class DevicesController {
   ) {}
 
   @Get()
-  list(@Query('q') q?: string, @Query('type') type?: DeviceType, @Query('departmentId') departmentId?: string) {
+  list(
+    @Query('q') q?: string,
+    @Query('type') type?: DeviceType,
+    @Query('departmentId') departmentId?: string,
+    @Query('connected') connected?: string,
+  ) {
     const text = q?.trim();
     const where: Prisma.DeviceWhereInput = {
       type: type || undefined,
       departmentId: departmentId || undefined,
+      connection: connected === 'true' ? { isNot: null } : connected === 'false' ? { is: null } : undefined,
       ...(text && {
         OR: [
           { name: { contains: text, mode: 'insensitive' } },

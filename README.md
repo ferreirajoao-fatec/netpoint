@@ -91,8 +91,9 @@ npx prisma migrate deploy
 
 ### Gerar um APK novo
 
-O perfil `preview` do `mobile/eas.json` gera um APK que já aponta para a API na nuvem
-(`EXPO_PUBLIC_API_URL`):
+O perfil `preview` do `mobile/eas.json` gera um APK que já aponta para a API na nuvem. O
+endereço (`EXPO_PUBLIC_API_URL`) fica nas variáveis de ambiente do EAS (ambientes `preview` e
+`production`, veja `npx eas-cli@latest env:list`):
 
 ```bash
 cd mobile
@@ -104,8 +105,23 @@ O build roda nos servidores do Expo (10 a 20 minutos no plano gratuito). No fim,
 download aparece no terminal e em expo.dev. Instale **por cima** do app atual: como a chave de
 assinatura fica guardada no EAS, os dados de login são preservados.
 
-Para mudanças só em telas e textos, o APK precisa ser gerado de novo. Não há atualização
-automática (OTA) configurada.
+Só é preciso gerar um APK novo quando entra uma biblioteca com código nativo ou quando muda a
+`version` do `mobile/app.json`. Para o resto, use uma atualização pelo ar (abaixo).
+
+### Atualizar o app sem reinstalar (EAS Update)
+
+Mudanças em telas, textos e lógica do app são enviadas direto para os celulares:
+
+```bash
+cd mobile
+npx eas-cli@latest update --channel preview --environment preview --message "Filtros na lista de equipamentos"
+```
+
+O app baixa a atualização em segundo plano ao abrir e passa a usá-la **na próxima vez que for
+aberto**. Para ver na hora, feche o app por completo e abra de novo (às vezes duas vezes).
+
+A atualização só chega aos APKs com a mesma `version` do `app.json` (`runtimeVersion` com
+política `appVersion`). Ao adicionar uma biblioteca nativa, aumente a `version` e gere um APK novo.
 
 > Se o upload falhar com `EPERM ... symlink` no Windows, a causa são links simbólicos criados
 > por ferramentas de IA (ex.: `backend/.claude/skills`). Remova só os links, não o conteúdo, e
@@ -299,6 +315,6 @@ mobile/src
 
 ## Gerar o app instalável
 
-Veja [Gerar um APK novo](#gerar-um-apk-novo). O `mobile/eas.json` já define o endereço da API
-(`EXPO_PUBLIC_API_URL`). Para iOS, o build (`--platform ios`) exige uma conta paga de
+Veja [Gerar um APK novo](#gerar-um-apk-novo). O endereço da API (`EXPO_PUBLIC_API_URL`)
+fica nas variáveis de ambiente do EAS. Para iOS, o build (`--platform ios`) exige uma conta paga de
 desenvolvedor Apple.

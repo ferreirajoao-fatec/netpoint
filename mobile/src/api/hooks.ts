@@ -5,6 +5,7 @@ import type {
   Department,
   DeviceDetail,
   DeviceListItem,
+  DeviceType,
   HistoryEntry,
   Location,
   LocationNode,
@@ -41,8 +42,17 @@ export const useTrace = (params: { deviceId?: string; pointId?: string; switchPo
     enabled: Object.values(params).some(Boolean),
   });
 
-export const useDevices = (q?: string) =>
-  useQuery({ queryKey: ['devices', q ?? ''], queryFn: () => api<DeviceListItem[]>('/devices', { query: { q } }), placeholderData: (p) => p });
+export interface DeviceFilters {
+  type?: DeviceType | null;
+  departmentId?: string | null;
+  connected?: boolean | null;
+}
+export const useDevices = (q?: string, filters: DeviceFilters = {}) =>
+  useQuery({
+    queryKey: ['devices', q ?? '', filters.type ?? null, filters.departmentId ?? null, filters.connected ?? null],
+    queryFn: () => api<DeviceListItem[]>('/devices', { query: { q, ...filters } }),
+    placeholderData: (p) => p,
+  });
 export const useDevice = (id?: string) =>
   useQuery({ queryKey: ['device', id], queryFn: () => api<DeviceDetail>(`/devices/${id}`), enabled: !!id });
 
