@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: netpoint-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: netpoint
+      POSTGRES_PASSWORD: netpoint
+      POSTGRES_DB: netpoint
+    ports:
+      - "5433:5432"
+    volumes:
+      - netpoint-data:/var/lib/postgresql/data
+
+volumes:
+  netpoint-data:

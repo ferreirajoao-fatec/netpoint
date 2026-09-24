@@ -1,0 +1,244 @@
+// NetPoint — modelo de dados
+//
+// Hierarquia física:  Location (Prédio › Bloco › Andar)  →  Room (Sala)  →  Rack
+// Caminho de uma conexão:  Device → NetworkPoint → PatchPanelPort → SwitchPort
+// A entidade Connection amarra esses elementos (uma por ponto de rede).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+  VIEWER
+}
+
+enum LocationType {
+  BUILDING
+  BLOCK
+  FLOOR
+  AREA
+}
+
+enum DeviceType {
+  COMPUTER
+  NOTEBOOK
+  PRINTER
+  ACCESS_POINT
+  SERVER
+  CAMERA
+  IP_PHONE
+  SWITCH
+  OTHER
+}
+
+/// Status "manual" da porta. Porta com Connection é considerada em uso,
+/// a menos que esteja marcada como DISABLED ou FAULTY.
+enum PortStatus {
+  AVAILABLE
+  IN_USE
+  RESERVED
+  DISABLED
+  FAULTY
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(VIEWER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  history ConnectionHistory[]
+}
+
+model Location {
+  id        String       @id @default(uuid())
+  name      String
+  type      LocationType @default(AREA)
+  parentId  String?
+  parent    Location?    @relation("LocationTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Location[]   @relation("LocationTree")
+  rooms     Room[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([parentId])
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rooms   Room[]
+  devices Device[]
+  points  NetworkPoint[]
+}
+
+model Room {
+  id           String      @id @default(uuid())
+  name         String
+  locationId   String?
+  location     Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  devices  Device[]
+  points   NetworkPoint[]
+  racks    Rack[]
+  switches Switch[]
+}
+
+model Rack {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  roomId    String?
+  room      Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  switches    Switch[]
+  patchPanels PatchPanel[]
+}
+
+model Switch {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  manufacturer String?
+  model        String?
+  portCount    Int
+  ipAddress    String?
+  macAddress   String?
+  roomId       String?
+  room         Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  rackId       String?
+  rack         Rack?    @relation(fields: [rackId], references: [id], onDelete: SetNull)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ports SwitchPort[]
+}
+
+model SwitchPort {
+  id         String      @id @default(uuid())
+  switchId   String
+  switch     Switch      @relation(fields: [switchId], references: [id], onDelete: Cascade)
+  number     Int
+  status     PortStatus  @default(AVAILABLE)
+  notes      String?
+  connection Connection?
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([switchId, number])
+}
+
+model PatchPanel {
+  id        String   @id @default(uuid())
+  name      String
+  portCount Int
+  rackId    String?
+  rack      Rack?    @relation(fields: [rackId], references: [id], onDelete: SetNull)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ports PatchPanelPort[]
+}
+
+model PatchPanelPort {
+  id           String      @id @default(uuid())
+  patchPanelId String
+  patchPanel   PatchPanel  @relation(fields: [patchPanelId], references: [id], onDelete: Cascade)
+  number       Int
+  connection   Connection?
+
+  @@unique([patchPanelId, number])
+}
+
+model NetworkPoint {
+  id           String      @id @default(uuid())
+  code         String      @unique
+  roomId       String?
+  room         Room?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  notes        String?
+  connection   Connection?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Device {
+  id              String      @id @default(uuid())
+  name            String
+  type            DeviceType  @default(COMPUTER)
+  responsibleUser String?
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  roomId          String?
+  room            Room?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  hostname        String?
+  ipAddress       String?
+  macAddress      String?
+  assetTag        String?
+  notes           String?
+  connection      Connection?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([hostname])
+  @@index([ipAddress])
+}
+
+/// Caminho físico de um ponto de rede:
+/// Device → NetworkPoint → PatchPanelPort → SwitchPort
+/// Cada elemento pode participar de no máximo uma conexão.
+model Connection {
+  id               String          @id @default(uuid())
+  networkPointId   String          @unique
+  networkPoint     NetworkPoint    @relation(fields: [networkPointId], references: [id], onDelete: Cascade)
+  deviceId         String?         @unique
+  device           Device?         @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  patchPanelPortId String?         @unique
+  patchPanelPort   PatchPanelPort? @relation(fields: [patchPanelPortId], references: [id], onDelete: SetNull)
+  switchPortId     String?         @unique
+  switchPort       SwitchPort?     @relation(fields: [switchPortId], references: [id], onDelete: SetNull)
+  cableLabel       String?
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model ConnectionHistory {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName      String
+  entityType    String
+  entityId      String?
+  entityLabel   String
+  action        String
+  field         String?
+  previousValue String?
+  newValue      String?
+  description   String?
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}

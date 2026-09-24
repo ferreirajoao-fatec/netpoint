@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "NetPoint",
+    "slug": "netpoint",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.netpoint.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.netpoint.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O NetPoint usa a câmera para ler QR Codes de switches, racks e pontos de rede.",
+          "barcodeScannerEnabled": true
+        }
+      ],
+      "expo-sharing",
+      "expo-secure-store",
+      "expo-font",
+      "expo-document-picker"
+    ],
+    "scheme": "netpoint"
+  }
+}
