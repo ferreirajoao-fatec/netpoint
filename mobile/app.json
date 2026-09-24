@@ -18,7 +18,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.netpoint.app"
+      "package": "com.netpoint.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +41,13 @@
       "expo-font",
       "expo-document-picker"
     ],
-    "scheme": "netpoint"
+    "scheme": "netpoint",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "356c3c95-f2bb-474d-a911-495165ba8523"
+      }
+    },
+    "owner": "joaoferreira_jgf"
   }
 }
