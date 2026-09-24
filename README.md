@@ -18,9 +18,110 @@ Switch RH 01 — Porta 43
 | `backend/` | Node.js · NestJS 11 · Prisma 6 · PostgreSQL 17 · JWT · ExcelJS              |
 | `mobile/`  | React Native · Expo SDK 57 · Expo Router · TypeScript · React Query · Zustand |
 
+O NetPoint roda **na nuvem**: a API fica em **https://netpoint-api.vercel.app/api** e o app é
+instalado no celular como APK. Nenhum computador precisa ficar ligado. Veja
+[Versão na nuvem](#versão-na-nuvem-produção). As instruções abaixo são para **desenvolvimento local**.
+
 ---
 
-## Como rodar
+## Versão na nuvem (produção)
+
+```
+Celular (APK NetPoint)
+   │  HTTPS
+   ▼
+API NestJS na Vercel ── região gru1 (São Paulo)
+   https://netpoint-api.vercel.app/api
+   │
+   ▼
+PostgreSQL no Neon ─── região São Paulo, contratado pelo Marketplace da Vercel
+```
+
+| Parte | Onde fica | Conta |
+|---|---|---|
+| API | Projeto **`netpoint-api`** na Vercel, pasta `backend/` | Vercel `ferreirajoao-fatec` |
+| Banco | Neon PostgreSQL **`netpoint-db`**, conectado ao projeto `netpoint-api` | Vercel Marketplace (plano gratuito) |
+| App | Projeto **`@joaoferreira_jgf/netpoint`** no EAS (build e chave de assinatura Android) | Expo `joaoferreira_jgf` |
+
+> **O banco oficial é o da nuvem.** O PostgreSQL do Docker serve só para desenvolvimento.
+> O que for cadastrado pelo Expo Go, ligado a uma API local, **não aparece** no app instalado.
+
+### Variáveis de ambiente (Vercel)
+
+| Variável | Origem | Uso |
+|---|---|---|
+| `DATABASE_URL` | Integração Neon (automática) | Conexão com pool, usada pela API |
+| `DATABASE_URL_UNPOOLED` | Integração Neon (automática) | Conexão direta, usada pelas migrações (`directUrl` no Prisma) |
+| `JWT_SECRET` | Criada manualmente (Sensitive) | Assinatura dos logins, exclusiva da produção |
+
+Para trazer as variáveis para a máquina local (arquivo `backend/.env.local`, que fica fora do git):
+
+```bash
+cd backend
+npx vercel@latest link              # uma vez: vincula a pasta ao projeto netpoint-api
+npx vercel@latest env pull .env.local --yes
+```
+
+### Atualizar a API
+
+O deploy é feito pela CLI. O projeto **não** está ligado ao GitHub, então um push não publica nada.
+
+```bash
+cd backend
+npx vercel@latest deploy --prod
+```
+
+Na Vercel, o `postinstall` roda o `prisma generate`. O `src/main.ts` é detectado automaticamente
+e a API vira uma única Vercel Function.
+
+### Mudanças no banco (migrações)
+
+Crie a migração localmente (`npx prisma migrate dev --name <nome>`) e aplique na nuvem **antes**
+de publicar a API nova:
+
+```bash
+cd backend
+# carrega as credenciais do Neon só para este comando (bash)
+set -a; eval "$(grep -E '^(DATABASE_URL|DATABASE_URL_UNPOOLED)=' .env.local)"; set +a
+npx prisma migrate deploy
+```
+
+> ⚠️ **Nunca rode `npm run db:seed` ou `npm run db:reset` com as credenciais da nuvem.**
+> Os dois comandos **apagam todos os dados** (o seed recria os exemplos de demonstração).
+
+### Gerar um APK novo
+
+O perfil `preview` do `mobile/eas.json` gera um APK que já aponta para a API na nuvem
+(`EXPO_PUBLIC_API_URL`):
+
+```bash
+cd mobile
+npx eas-cli@latest login            # uma vez
+npx eas-cli@latest build --platform android --profile preview
+```
+
+O build roda nos servidores do Expo (10 a 20 minutos no plano gratuito). No fim, o link de
+download aparece no terminal e em expo.dev. Instale **por cima** do app atual: como a chave de
+assinatura fica guardada no EAS, os dados de login são preservados.
+
+Para mudanças só em telas e textos, o APK precisa ser gerado de novo. Não há atualização
+automática (OTA) configurada.
+
+> Se o upload falhar com `EPERM ... symlink` no Windows, a causa são links simbólicos criados
+> por ferramentas de IA (ex.: `backend/.claude/skills`). Remova só os links, não o conteúdo, e
+> rode o build de novo.
+
+### Acesso e segurança
+
+- A API fica pública na internet e é protegida pelo login. Sem token, todas as rotas respondem 401.
+- Em produção existe só o usuário **admin**, com senha própria. Os usuários de demonstração
+  abaixo existem apenas no banco local criado pelo seed.
+- Crie técnicos e perfis de consulta em **Ajustes › Usuários**, com senhas próprias.
+- Faça cópias periódicas em **Ajustes › Exportar inventário** (planilha .xlsx).
+
+---
+
+## Desenvolvimento local
 
 Pré-requisitos: Node.js 20+ e Docker.
 
@@ -54,7 +155,9 @@ No celular, o app usa automaticamente o IP do computador que roda o Expo
 pode ser alterado na tela de login ("Configurar servidor") ou em **Ajustes**,
 ou fixado com a variável `EXPO_PUBLIC_API_URL`.
 
-### Usuários de demonstração
+### Usuários de demonstração (somente local)
+
+Criados pelo `npm run db:seed` no banco do Docker. **Não existem na nuvem.**
 
 | Perfil        | E-mail                    | Senha         |
 | ------------- | ------------------------- | ------------- |
@@ -196,9 +299,6 @@ mobile/src
 
 ## Gerar o app instalável
 
-```bash
-cd mobile
-npx eas-cli@latest build --platform android   # ou ios
-```
-
-Em produção, defina `EXPO_PUBLIC_API_URL` com o endereço da API e use um `JWT_SECRET` forte no backend.
+Veja [Gerar um APK novo](#gerar-um-apk-novo). O `mobile/eas.json` já define o endereço da API
+(`EXPO_PUBLIC_API_URL`). Para iOS, o build (`--platform ios`) exige uma conta paga de
+desenvolvedor Apple.
