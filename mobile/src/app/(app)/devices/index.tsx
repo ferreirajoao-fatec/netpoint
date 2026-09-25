@@ -3,9 +3,11 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDevices, type DeviceFilters } from '@/api/hooks';
+import type { DeviceListItem } from '@/api/types';
+import { GroupedList } from '@/components/GroupedList';
 import { usePermissions } from '@/store/auth';
 import { Select } from '@/components/Select';
-import { Body, Card, Chip, EmptyState, ErrorView, Fab, Input, ListItem, Loading, Row, Screen, SectionTitle, Segmented } from '@/components/ui';
+import { Card, Chip, EmptyState, ErrorView, Fab, Input, ListItem, Loading, Row, Screen, SectionTitle, Segmented } from '@/components/ui';
 import { DEVICE_TYPES, deviceTypeIcon, pad2 } from '@/lib/labels';
 import { useDepartmentOptions } from '@/lib/options';
 import { radius, spacing, useTheme } from '@/theme';
@@ -23,6 +25,7 @@ export default function DevicesScreen() {
 
   const activeCount = [filters.type, filters.departmentId, filters.connected].filter((v) => v != null).length;
   const set = <K extends keyof DeviceFilters>(key: K, value: DeviceFilters[K]) => setFilters((f) => ({ ...f, [key]: value }));
+  const searching = !!q.trim() || activeCount > 0;
   const connection: ConnectionFilter = filters.connected == null ? 'all' : filters.connected ? 'connected' : 'disconnected';
 
   return (
@@ -99,11 +102,6 @@ export default function DevicesScreen() {
 
       {isLoading && <Loading />}
       {error && <ErrorView error={error} onRetry={refetch} />}
-      {!!data?.length && (q || activeCount > 0) && (
-        <Body muted size={13}>
-          {data.length} {data.length === 1 ? 'equipamento encontrado' : 'equipamentos encontrados'}
-        </Body>
-      )}
       {data?.length === 0 && (
         <EmptyState
           icon="desktop-classic"
@@ -111,20 +109,34 @@ export default function DevicesScreen() {
           message={q || activeCount ? 'Tente outra busca ou ajuste os filtros.' : 'Cadastre o primeiro equipamento.'}
         />
       )}
-      {data?.map((d) => {
-        const c = d.connection;
-        const where = c ? `${c.networkPoint.code}${c.switchPort ? ` → ${c.switchPort.switch.name} · P${pad2(c.switchPort.number)}` : ''}` : 'Sem conexão';
-        return (
-          <ListItem
-            key={d.id}
-            icon={deviceTypeIcon(d.type)}
-            iconColor="#7C3AED"
-            title={d.name}
-            subtitle={[[d.responsibleUser, d.department?.name].filter(Boolean).join(' · '), where].filter(Boolean).join('\n')}
-            onPress={() => router.push(`/devices/${d.id}`)}
-          />
-        );
-      })}
+      {data && (
+        <GroupedList
+          // Busca ou filtro ativo: grupos começam abertos para mostrar os resultados
+          key={searching ? 'busca' : 'todos'}
+          defaultOpen={searching}
+          items={data}
+          getRoom={deviceRoom}
+          noun={['equipamento', 'equipamentos']}
+          renderItem={renderDevice}
+        />
+      )}
     </Screen>
+  );
+}
+
+const deviceRoom = (d: DeviceListItem) => d.room;
+
+function renderDevice(d: DeviceListItem) {
+  const c = d.connection;
+  const where = c ? `${c.networkPoint.code}${c.switchPort ? ` → ${c.switchPort.switch.name} · P${pad2(c.switchPort.number)}` : ''}` : 'Sem conexão';
+  return (
+    <ListItem
+      key={d.id}
+      icon={deviceTypeIcon(d.type)}
+      iconColor="#7C3AED"
+      title={d.name}
+      subtitle={[[d.responsibleUser, d.department?.name].filter(Boolean).join(' · '), where].filter(Boolean).join('\n')}
+      onPress={() => router.push(`/devices/${d.id}`)}
+    />
   );
 }

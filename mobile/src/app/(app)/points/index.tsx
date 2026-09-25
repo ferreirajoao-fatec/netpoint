@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { usePoints } from '@/api/hooks';
+import type { NetworkPoint } from '@/api/types';
+import { GroupedList } from '@/components/GroupedList';
 import { usePermissions } from '@/store/auth';
 import { Badge, EmptyState, ErrorView, Fab, Input, ListItem, Loading, Screen, Segmented } from '@/components/ui';
 import { useTheme } from '@/theme';
@@ -13,6 +15,7 @@ export default function PointsScreen() {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'all' | 'unmapped'>(params.unmapped ? 'unmapped' : 'all');
   const { data, isLoading, error, refetch, isRefetching } = usePoints(q.trim(), filter === 'unmapped');
+  const searching = !!q.trim() || filter === 'unmapped';
 
   return (
     <Screen onRefresh={refetch} refreshing={isRefetching} footer={canEdit && <Fab label="Novo" onPress={() => router.push('/points/form')} />}>
@@ -35,25 +38,36 @@ export default function PointsScreen() {
           message={filter === 'unmapped' ? undefined : 'Cadastre as tomadas de rede com uma identificação, como RH-PT-01.'}
         />
       )}
-      {data?.map((p) => {
-        const t = p.trace;
-        const mapped = !!t?.switch;
-        return (
-          <ListItem
-            key={p.id}
-            icon="ethernet"
-            iconColor={mapped ? '#0891B2' : colors.danger}
-            title={p.code}
-            subtitle={[
-              p.location ?? p.room?.name ?? 'Sem local',
-              t?.device ? `🖥 ${t.device.name}` : 'Sem equipamento',
-              t?.switch ? `${t.switch.name} · Porta ${pad2(t.switch.port)}` : null,
-            ].filter(Boolean).join('\n')}
-            right={!mapped ? <Badge label="Sem switch" color={colors.dangerSoft} textColor={colors.danger} /> : undefined}
-            onPress={() => router.push(`/points/${p.id}`)}
-          />
-        );
-      })}
+      {data && (
+        <GroupedList
+          // Busca ou filtro ativo: grupos começam abertos para mostrar os resultados
+          key={searching ? 'busca' : 'todos'}
+          defaultOpen={searching}
+          items={data}
+          getRoom={pointRoom}
+          noun={['ponto', 'pontos']}
+          renderItem={(p) => {
+            const t = p.trace;
+            const mapped = !!t?.switch;
+            return (
+              <ListItem
+                key={p.id}
+                icon="ethernet"
+                iconColor={mapped ? '#0891B2' : colors.danger}
+                title={p.code}
+                subtitle={[
+                  t?.device ? `🖥 ${t.device.name}` : 'Sem equipamento',
+                  t?.switch ? `${t.switch.name} · Porta ${pad2(t.switch.port)}` : null,
+                ].filter(Boolean).join('\n')}
+                right={!mapped ? <Badge label="Sem switch" color={colors.dangerSoft} textColor={colors.danger} /> : undefined}
+                onPress={() => router.push(`/points/${p.id}`)}
+              />
+            );
+          }}
+        />
+      )}
     </Screen>
   );
 }
+
+const pointRoom = (p: NetworkPoint) => p.room;
