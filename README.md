@@ -192,12 +192,12 @@ O seed cria um campus com RH, Financeiro, CPD e Laboratório: 2 switches, 2 patc
 |---|---|---|
 | 1 | **Dashboard**: equipamentos, switches, pontos, portas em uso/livres, pontos sem identificação, cabos, atalhos | aba *Início* |
 | 2 | **Locais**: Prédio › Bloco › Andar › Sala, além dos setores | *Rede › Salas e locais* |
-| 3 | **Equipamentos**: 9 tipos, com hostname, IP, MAC, patrimônio e ponto de rede | *Rede › Equipamentos* |
+| 3 | **Equipamentos**: 9 tipos, com hostname, IP, MAC, patrimônio, ramal (telefones) e ponto de rede | *Rede › Equipamentos* |
 | 4 | **Pontos de rede**: sala, setor, patch panel e porta, switch e porta, equipamento, cabo | *Rede › Pontos de rede* |
 | 5 | **Switches**: fabricante, modelo, portas, IP, MAC, local, rack | *Rede › Switches* |
 | 6 | **Frente do switch**: portas coloridas por status; toque para ver ponto, equipamento, usuário, setor, IP e hostname, trocar o status ou ligar/desligar um ponto | tela do switch |
 | 7 | **Rastrear conexão**: fluxo Equipamento → Ponto → Patch panel → Switch | aba *Pesquisar*, botão "Ver caminho da conexão" |
-| 8 | **Pesquisa global**: nome, PC, hostname, IP, MAC, patrimônio, ponto, switch, porta (`43`) ou switch + porta (`RH 01 porta 43`) | barra da tela inicial e aba *Pesquisar* |
+| 8 | **Pesquisa global**: nome, PC, hostname, IP, MAC, patrimônio, ramal, ponto, switch, porta (`43`) ou switch + porta (`RH 01 porta 43`) | barra da tela inicial e aba *Pesquisar* |
 | 9 | **QR Code** para switch, rack, ponto e equipamento, com leitor no app | ícone de QR nos detalhes; aba *QR Code* |
 | 10 | **Histórico**: data, hora, usuário, alteração, valor anterior → novo | *Rede › Histórico* e nos detalhes |
 | 11 | **Exportar inventário .xlsx** com 4 abas formatadas | *Início* ou *Ajustes* (admin) |

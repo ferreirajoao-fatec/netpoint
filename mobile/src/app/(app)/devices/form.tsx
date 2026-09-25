@@ -20,6 +20,7 @@ const EMPTY = {
   ipAddress: '',
   macAddress: '',
   assetTag: '',
+  extension: '',
   notes: '',
   networkPointId: null as string | null,
 };
@@ -41,6 +42,7 @@ export default function DeviceFormScreen() {
       ipAddress: d.ipAddress ?? '',
       macAddress: d.macAddress ?? '',
       assetTag: d.assetTag ?? '',
+      extension: d.extension ?? '',
       notes: d.notes ?? '',
       networkPointId: d.trace.point?.id ?? null,
     }
@@ -128,6 +130,11 @@ function DeviceForm({ id, initial }: { id?: string; initial: typeof EMPTY }) {
         <Field label="Patrimônio">
           <Input value={form.assetTag} onChangeText={(v) => set('assetTag', v)} placeholder="Ex.: PAT-00123" />
         </Field>
+        {(form.type === 'IP_PHONE' || !!form.extension) && (
+          <Field label="Ramal">
+            <Input value={form.extension} onChangeText={(v) => set('extension', v)} placeholder="Ex.: 1921" keyboardType="number-pad" icon="phone-outline" />
+          </Field>
+        )}
         <Field label="Ponto de rede conectado" hint="Se o ponto já tiver outro equipamento, ele será desconectado de lá.">
           <Select value={form.networkPointId} options={points} onChange={(v) => set('networkPointId', v)} placeholder="Selecionar ponto" title="Ponto de rede" />
         </Field>

@@ -35,7 +35,7 @@ export function TraceFlow({ trace, compact }: { trace: Trace; compact?: boolean 
       color: '#7C3AED',
       kicker: 'Equipamento',
       title: d?.name ?? null,
-      lines: d ? [[d.responsibleUser, d.department].filter(Boolean).join(' · '), compact ? null : d.hostname, compact ? null : d.ipAddress] : [],
+      lines: d ? [[d.extension && `Ramal ${d.extension}`, d.responsibleUser, d.department].filter(Boolean).join(' · '), compact ? null : d.hostname, compact ? null : d.ipAddress] : [],
       href: d ? `/devices/${d.id}` : undefined,
     },
     {

@@ -204,6 +204,8 @@ model Device {
   ipAddress       String?
   macAddress      String?
   assetTag        String?
+  /// Ramal telefônico (telefones IP)
+  extension       String?
   notes           String?
   connection      Connection?
   createdAt       DateTime    @default(now())

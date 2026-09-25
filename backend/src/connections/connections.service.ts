@@ -29,6 +29,7 @@ export interface Trace {
     ipAddress: string | null;
     macAddress: string | null;
     assetTag: string | null;
+    extension: string | null;
   } | null;
   point: { id: string; code: string; room: string | null; location: string | null; department: string | null } | null;
   patchPanel: { id: string; name: string; portId: string; port: number; rack: string | null } | null;
@@ -59,6 +60,7 @@ export const deviceSummary = (d: DeviceWithRefs): NonNullable<Trace['device']> =
   ipAddress: d.ipAddress,
   macAddress: d.macAddress,
   assetTag: d.assetTag,
+  extension: d.extension,
 });
 
 export const emptyTrace = (): Trace => ({

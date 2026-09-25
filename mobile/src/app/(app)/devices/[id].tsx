@@ -56,6 +56,7 @@ export default function DeviceDetailScreen() {
           <InfoRow icon="ip-network-outline" label="IP" value={d.ipAddress} mono />
           <InfoRow icon="barcode" label="MAC" value={d.macAddress} mono />
           <InfoRow icon="tag-outline" label="Patrimônio" value={d.assetTag} />
+          {(d.type === 'IP_PHONE' || d.extension) && <InfoRow icon="phone-outline" label="Ramal" value={d.extension} />}
         </View>
       </Card>
 

@@ -19,6 +19,7 @@ export class DeviceDto {
   @ValidateIf(notBlank) @Matches(IPV4_REGEX, { message: 'Endereço IP inválido' }) ipAddress?: string | null;
   @ValidateIf(notBlank) @Matches(MAC_REGEX, { message: 'Endereço MAC inválido (ex.: A4-B1-C2-D3-E4-F5)' }) macAddress?: string | null;
   @IsOptional() @IsString() assetTag?: string | null;
+  @IsOptional() @IsString() extension?: string | null;
   @IsOptional() @IsString() notes?: string | null;
   /** Ponto de rede onde o equipamento está ligado. null = desconectar. */
   @IsOptional() @IsUUID() networkPointId?: string | null;
@@ -32,6 +33,7 @@ export const DEVICE_HISTORY_FIELDS = {
   ipAddress: 'IP',
   macAddress: 'MAC',
   assetTag: 'Patrimônio',
+  extension: 'Ramal',
   notes: 'Observações',
 };
 
@@ -46,6 +48,7 @@ export function deviceData(dto: DeviceDto) {
     ipAddress: optText(dto.ipAddress),
     macAddress: dto.macAddress === undefined ? undefined : normalizeMac(optText(dto.macAddress)),
     assetTag: optText(dto.assetTag),
+    extension: optText(dto.extension),
     notes: optText(dto.notes),
   };
 }
@@ -89,6 +92,7 @@ export class DevicesController {
           { ipAddress: { contains: text } },
           { macAddress: { contains: normalizeMac(text) ?? text, mode: 'insensitive' } },
           { assetTag: { contains: text, mode: 'insensitive' } },
+          { extension: { contains: text } },
         ],
       }),
     };

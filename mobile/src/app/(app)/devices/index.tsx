@@ -37,7 +37,7 @@ export default function DevicesScreen() {
       <Stack.Screen options={{ title: 'Equipamentos' }} />
       <Row>
         <View style={{ flex: 1 }}>
-          <Input icon="magnify" placeholder="Nome, usuário, hostname, IP, MAC…" value={q} onChangeText={setQ} autoCorrect={false} autoCapitalize="none" />
+          <Input icon="magnify" placeholder="Nome, usuário, hostname, IP, MAC, ramal…" value={q} onChangeText={setQ} autoCorrect={false} autoCapitalize="none" />
         </View>
         <Pressable
           onPress={() => setShowFilters((s) => !s)}
@@ -135,7 +135,7 @@ function renderDevice(d: DeviceListItem) {
       icon={deviceTypeIcon(d.type)}
       iconColor="#7C3AED"
       title={d.name}
-      subtitle={[[d.responsibleUser, d.department?.name].filter(Boolean).join(' · '), where].filter(Boolean).join('\n')}
+      subtitle={[[d.extension && `Ramal ${d.extension}`, d.responsibleUser, d.department?.name].filter(Boolean).join(' · '), where].filter(Boolean).join('\n')}
       onPress={() => router.push(`/devices/${d.id}`)}
     />
   );

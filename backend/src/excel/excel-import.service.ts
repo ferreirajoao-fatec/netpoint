@@ -9,7 +9,7 @@ import { DEVICE_TYPE_LABEL, IPV4_REGEX, MAC_REGEX, normalizeMac } from '../commo
 import { addSheet } from './excel-export.service';
 
 // Colunas das planilhas-padrão. A ordem pode variar: as colunas são localizadas pelo nome do cabeçalho.
-const DEVICE_COLUMNS = ['Equipamento', 'Tipo', 'Usuário', 'Setor', 'Sala', 'Hostname', 'IP', 'MAC', 'Patrimônio', 'Ponto de Rede', 'Observações'];
+const DEVICE_COLUMNS = ['Equipamento', 'Tipo', 'Usuário', 'Setor', 'Sala', 'Hostname', 'IP', 'MAC', 'Patrimônio', 'Ramal', 'Ponto de Rede', 'Observações'];
 const POINT_COLUMNS = ['Ponto', 'Sala', 'Setor', 'Patch Panel', 'Porta Patch Panel', 'Switch', 'Porta Switch', 'Equipamento', 'Identificação do Cabo', 'Observações'];
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
@@ -55,6 +55,8 @@ interface DeviceRow {
   ipAddress: string | null;
   macAddress: string | null;
   assetTag: string | null;
+  /** undefined = coluna ausente na planilha (mantém o ramal atual) */
+  extension: string | null | undefined;
   pointCode: string | null;
   notes: string | null;
   existingId?: string;
@@ -116,7 +118,7 @@ export class ExcelImportService {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'NetPoint';
     addSheet(wb, 'Equipamentos', DEVICE_COLUMNS, [
-      ['PC do Lucas', 'Computador', 'Lucas', 'RH', 'Sala RH', 'PCRH-LUCAS', '172.16.20.35', 'A4-B1-C2-D3-E4-F5', 'PAT-00123', 'RH-PT-07', null],
+      ['PC do Lucas', 'Computador', 'Lucas', 'RH', 'Sala RH', 'PCRH-LUCAS', '172.16.20.35', 'A4-B1-C2-D3-E4-F5', 'PAT-00123', null, 'RH-PT-07', null],
     ]);
     addSheet(wb, 'Pontos de Rede', POINT_COLUMNS, [
       ['RH-PT-07', 'Sala RH', 'RH', 'Patch Panel 01', 7, 'Switch RH 01', 43, 'PC do Lucas', 'CB-0107', null],
@@ -211,7 +213,8 @@ export class ExcelImportService {
       if (name && type) {
         devRows.push({
           row: r.row, name, type, responsibleUser: r.get('Usuário'), department: r.get('Setor'), room: r.get('Sala'),
-          hostname, ipAddress: ip, macAddress: normalizeMac(mac), assetTag, pointCode: r.get('Ponto de Rede')?.toUpperCase() ?? null,
+          hostname, ipAddress: ip, macAddress: normalizeMac(mac), assetTag,
+          extension: devSheet!.missing.includes('Ramal') ? undefined : r.get('Ramal'), pointCode: r.get('Ponto de Rede')?.toUpperCase() ?? null,
           notes: r.get('Observações'), existingId: existing?.id,
         });
       }
@@ -344,7 +347,7 @@ export class ExcelImportService {
           const departmentId = await depId(d.department);
           const data = {
             name: d.name, type: d.type, responsibleUser: d.responsibleUser, departmentId, roomId: await roomId(d.room, departmentId),
-            hostname: d.hostname, ipAddress: d.ipAddress, macAddress: d.macAddress, assetTag: d.assetTag, notes: d.notes,
+            hostname: d.hostname, ipAddress: d.ipAddress, macAddress: d.macAddress, assetTag: d.assetTag, extension: d.extension, notes: d.notes,
           };
           const saved = d.existingId ? await tx.device.update({ where: { id: d.existingId }, data }) : await tx.device.create({ data });
           deviceIds.set(d, saved.id);

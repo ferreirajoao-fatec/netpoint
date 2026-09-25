@@ -20,7 +20,7 @@ const ci = (text: string) => ({ contains: text, mode: 'insensitive' as const });
 
 /**
  * Pesquisa global usada pela barra da tela inicial e pelo "Rastrear conexão".
- * Aceita nome do funcionário, equipamento, hostname, IP, MAC, patrimônio,
+ * Aceita nome do funcionário, equipamento, hostname, IP, MAC, patrimônio, ramal,
  * ponto de rede, switch, número de porta ("43") ou switch + porta ("RH 01 43").
  */
 @Controller('search')
@@ -81,6 +81,7 @@ class SearchController {
           { ipAddress: { contains: q } },
           { macAddress: ci(mac ?? q) },
           { assetTag: ci(q) },
+          { extension: { contains: q } },
           { department: { name: ci(q) } },
         ],
       },

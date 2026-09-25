@@ -84,7 +84,7 @@ export class ExcelExportService {
     addSheet(
       wb,
       'Equipamentos',
-      ['Equipamento', 'Tipo', 'Usuário', 'Setor', 'Hostname', 'IP', 'MAC', 'Patrimônio', 'Ponto de Rede', 'Switch', 'Porta'],
+      ['Equipamento', 'Tipo', 'Usuário', 'Setor', 'Hostname', 'IP', 'MAC', 'Patrimônio', 'Ramal', 'Ponto de Rede', 'Switch', 'Porta'],
       devices.map((d) => [
         d.name,
         DEVICE_TYPE_LABEL[d.type],
@@ -94,6 +94,7 @@ export class ExcelExportService {
         d.ipAddress,
         d.macAddress,
         d.assetTag,
+        d.extension,
         d.connection?.networkPoint.code ?? null,
         d.connection?.switchPort?.switch.name ?? null,
         d.connection?.switchPort?.number ?? null,
