@@ -49,7 +49,7 @@ export class RacksController {
         where: { id },
         include: {
           room: true,
-          switches: { orderBy: { name: 'asc' }, include: { ports: { select: { status: true, connection: { select: { id: true } } } } } },
+          switches: { orderBy: { name: 'asc' }, include: { ports: { select: { status: true, linkedPortId: true, connection: { select: { id: true } } } } } },
           patchPanels: { orderBy: { name: 'asc' }, include: { ports: { select: { connection: { select: { id: true } } } } } },
         },
       }),

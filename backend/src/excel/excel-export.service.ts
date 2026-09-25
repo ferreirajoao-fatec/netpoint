@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.service';
 import { StructureService } from '../structure/structure.service';
-import { DEVICE_TYPE_LABEL, effectivePortStatus, PORT_STATUS_LABEL } from '../common/format';
+import { DEVICE_TYPE_LABEL, effectivePortStatus, PORT_STATUS_LABEL, switchPortLabel } from '../common/format';
 import { portUsage } from '../switches/switches.controller';
 
 type Cell = string | number | null;
@@ -71,7 +71,7 @@ export class ExcelExportService {
           room: true,
           ports: {
             orderBy: { number: 'asc' },
-            include: { connection: { include: { networkPoint: true, device: { include: { department: true } } } } },
+            include: { linkedPort: { include: { switch: true } }, connection: { include: { networkPoint: true, device: { include: { department: true } } } } },
           },
         },
       }),
@@ -133,15 +133,16 @@ export class ExcelExportService {
     addSheet(
       wb,
       'Mapeamento de Portas',
-      ['Switch', 'Porta', 'Status', 'Ponto de Rede', 'Equipamento', 'Usuário', 'Setor', 'IP', 'MAC'],
+      ['Switch', 'Porta', 'Status', 'Ponto de Rede', 'Uplink', 'Equipamento', 'Usuário', 'Setor', 'IP', 'MAC'],
       switches.flatMap((s) =>
         s.ports.map((port) => {
           const c = port.connection;
           return [
             s.name,
             port.number,
-            PORT_STATUS_LABEL[effectivePortStatus(port.status, Boolean(c))],
+            PORT_STATUS_LABEL[effectivePortStatus(port.status, Boolean(c || port.linkedPort))],
             c?.networkPoint.code ?? null,
+            port.linkedPort ? switchPortLabel(port.linkedPort.switch.name, port.linkedPort.number) : null,
             c?.device?.name ?? null,
             c?.device?.responsibleUser ?? null,
             c?.device?.department?.name ?? null,

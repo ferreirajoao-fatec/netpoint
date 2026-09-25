@@ -3,6 +3,7 @@
 // Hierarquia física:  Location (Prédio › Bloco › Andar)  →  Room (Sala)  →  Rack
 // Caminho de uma conexão:  Device → NetworkPoint → PatchPanelPort → SwitchPort
 // A entidade Connection amarra esses elementos (uma por ponto de rede).
+// Switches se comunicam entre si por uplinks (SwitchPort.linkedPortId).
 
 generator client {
   provider = "prisma-client-js"
@@ -144,6 +145,11 @@ model SwitchPort {
   status     PortStatus  @default(AVAILABLE)
   notes      String?
   connection Connection?
+  /// Uplink: porta de outro switch ligada diretamente nesta. O vínculo é gravado
+  /// nos dois lados (A.linkedPortId = B e B.linkedPortId = A).
+  linkedPortId String?     @unique
+  linkedPort   SwitchPort? @relation("SwitchUplink", fields: [linkedPortId], references: [id], onDelete: SetNull)
+  linkedFrom   SwitchPort? @relation("SwitchUplink")
   updatedAt  DateTime    @updatedAt
 
   @@unique([switchId, number])

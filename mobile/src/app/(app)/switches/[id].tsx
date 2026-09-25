@@ -11,7 +11,8 @@ import { PortGrid, PortLegend } from '@/components/PortGrid';
 import { Select } from '@/components/Select';
 import { UsageBar } from '@/components/UsageBar';
 import { pad2 } from '@/lib/labels';
-import { usePointOptions } from '@/lib/options';
+import { usePointOptions, useSwitchOptions } from '@/lib/options';
+import { PortPicker } from '@/components/PortPicker';
 
 export default function SwitchDetailScreen() {
   const { id, port } = useLocalSearchParams<{ id: string; port?: string }>();
@@ -63,7 +64,7 @@ export default function SwitchDetailScreen() {
       <PortGrid ports={sw.ports} selected={selected} onPress={(p) => setSelected(p.number === selected ? null : p.number)} />
       <PortLegend />
 
-      {current && <PortPanel key={`${current.number}-${current.trace?.point?.id ?? ''}`} sw={sw} port={current} canEdit={canEdit} />}
+      {current && <PortPanel key={`${current.number}-${current.trace?.point?.id ?? ''}-${current.uplink?.portId ?? ''}`} sw={sw} port={current} canEdit={canEdit} />}
 
       <SectionTitle>Informações</SectionTitle>
       <Card>
@@ -87,7 +88,12 @@ function PortPanel({ sw, port, canEdit }: { sw: SwitchDetail; port: SwitchPort; 
   const t = port.trace;
   const color = PORT_COLORS[port.status];
   const points = usePointOptions();
+  const switches = useSwitchOptions().filter((o) => o.value !== sw.id);
   const [pointId, setPointId] = useState<string | null>(t?.point?.id ?? null);
+  const up = port.uplink;
+  const [upSwitchId, setUpSwitchId] = useState<string | null>(up?.switchId ?? null);
+  const [upPort, setUpPort] = useState<number | null>(up?.port ?? null);
+  const upChanged = upSwitchId !== (up?.switchId ?? null) || (upSwitchId !== null && upPort !== (up?.port ?? null));
 
   const mutate = useSave((body: Parameters<typeof updatePort>[2]) => updatePort(sw.id, port.number, body));
   const run = (body: Parameters<typeof updatePort>[2]) => mutate.mutate(body, { onError: (e) => notify('Não foi possível alterar', e.message) });
@@ -112,8 +118,18 @@ function PortPanel({ sw, port, canEdit }: { sw: SwitchDetail; port: SwitchPort; 
           <InfoRow icon="ip-network-outline" label="IP" value={t.device?.ipAddress} mono />
           <InfoRow icon="monitor" label="Hostname" value={t.device?.hostname} mono />
         </View>
+      ) : up ? (
+        <View>
+          <InfoRow icon="swap-horizontal" label="Uplink para" value={`${up.switchName} · Porta ${pad2(up.port)}`} />
+          <Button
+            title={`Abrir ${up.switchName}`}
+            icon="switch"
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/switches/[id]', params: { id: up.switchId, port: String(up.port) } })}
+          />
+        </View>
       ) : (
-        <Body muted>{port.status === 'IN_USE' ? 'Em uso sem ponto mapeado (ex.: uplink).' : 'Nenhum ponto de rede ligado nesta porta.'}</Body>
+        <Body muted>{port.status === 'IN_USE' ? 'Em uso sem ponto mapeado.' : 'Nenhum ponto de rede ligado nesta porta.'}</Body>
       )}
       {port.notes && <Body muted>📝 {port.notes}</Body>}
 
@@ -123,9 +139,13 @@ function PortPanel({ sw, port, canEdit }: { sw: SwitchDetail; port: SwitchPort; 
 
       {canEdit && (
         <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-          <Body bold>Ponto de rede ligado nesta porta</Body>
-          <Select value={pointId} options={points} onChange={setPointId} placeholder="Nenhum" title="Ligar ponto à porta" icon="ethernet" />
-          {pointId !== (t?.point?.id ?? null) && (
+          {!up && (
+            <>
+              <Body bold>Ponto de rede ligado nesta porta</Body>
+              <Select value={pointId} options={points} onChange={setPointId} placeholder="Nenhum" title="Ligar ponto à porta" icon="ethernet" />
+            </>
+          )}
+          {!up && pointId !== (t?.point?.id ?? null) && (
             <Button
               title={pointId ? 'Confirmar ligação' : 'Desconectar ponto'}
               icon={pointId ? 'link-variant' : 'link-variant-off'}
@@ -133,6 +153,34 @@ function PortPanel({ sw, port, canEdit }: { sw: SwitchDetail; port: SwitchPort; 
               loading={mutate.isPending}
               onPress={() => run({ networkPointId: pointId })}
             />
+          )}
+
+          {!t?.point && (
+            <>
+              <Body bold>Uplink — switch ligado nesta porta</Body>
+              <Select
+                value={upSwitchId}
+                options={switches}
+                onChange={(v) => {
+                  setUpSwitchId(v);
+                  setUpPort(null);
+                }}
+                placeholder="Nenhum"
+                title="Switch do outro lado do cabo"
+                icon="switch"
+              />
+              {upSwitchId && <Body muted>Toque na porta do outro switch:</Body>}
+              <PortPicker kind="switch" ownerId={upSwitchId} value={upPort} onChange={setUpPort} uplinkFromPortId={port.id} />
+              {upChanged && (upSwitchId === null || upPort !== null) && (
+                <Button
+                  title={upSwitchId ? 'Confirmar uplink' : 'Desfazer uplink'}
+                  icon={upSwitchId ? 'link-variant' : 'link-variant-off'}
+                  variant={upSwitchId ? 'primary' : 'danger'}
+                  loading={mutate.isPending}
+                  onPress={() => run({ linkedSwitchId: upSwitchId, linkedPortNumber: upPort })}
+                />
+              )}
+            </>
           )}
 
           <Body bold>Status da porta</Body>

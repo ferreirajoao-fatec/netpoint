@@ -152,6 +152,15 @@ export interface SwitchPort {
   status: PortStatus;
   notes: string | null;
   trace: Trace | null;
+  /** Porta de outro switch ligada diretamente nesta (comunicação entre switches) */
+  uplink: SwitchUplink | null;
+}
+
+export interface SwitchUplink {
+  switchId: string;
+  switchName: string;
+  portId: string;
+  port: number;
 }
 
 export interface SwitchDetail extends SwitchItem {

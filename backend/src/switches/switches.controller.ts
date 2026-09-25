@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min, MinLength, ValidateIf } from 'class-validator';
 import { PortStatus } from '@prisma/client';
@@ -28,14 +28,23 @@ class PortUpdateDto {
   @IsOptional() @IsString() notes?: string | null;
   /** Ponto de rede ligado a esta porta. null = desconectar. */
   @IsOptional() @IsUUID() networkPointId?: string | null;
+  /** Uplink: switch e porta ligados diretamente nesta porta. linkedSwitchId = null desfaz o uplink. */
+  @IsOptional() @IsUUID() linkedSwitchId?: string | null;
+  @ValidateIf(notBlank) @Type(() => Number) @IsInt() @Min(1) linkedPortNumber?: number | null;
 }
 
-type PortLike = { status: PortStatus; connection: { id: string } | null };
+type PortLike = { status: PortStatus; connection: { id: string } | null; linkedPortId: string | null };
+
+const uplinkInclude = { linkedPort: { include: { switch: true } } } as const;
+
+/** Resumo do switch/porta do outro lado de um uplink. */
+export const uplinkSummary = (p: { linkedPort: { id: string; number: number; switch: { id: string; name: string } } | null }) =>
+  p.linkedPort && { switchId: p.linkedPort.switch.id, switchName: p.linkedPort.switch.name, portId: p.linkedPort.id, port: p.linkedPort.number };
 
 export function portUsage(ports: PortLike[]) {
   const usage = { total: ports.length, used: 0, available: 0, reserved: 0, disabled: 0, faulty: 0 };
   for (const p of ports) {
-    const s = effectivePortStatus(p.status, Boolean(p.connection));
+    const s = effectivePortStatus(p.status, Boolean(p.connection || p.linkedPortId));
     if (s === 'IN_USE') usage.used++;
     else if (s === 'AVAILABLE') usage.available++;
     else if (s === 'RESERVED') usage.reserved++;
@@ -71,7 +80,7 @@ export class SwitchesController {
     const [switches, paths] = await Promise.all([
       this.prisma.switch.findMany({
         orderBy: { name: 'asc' },
-        include: { rack: true, room: true, ports: { select: { status: true, connection: { select: { id: true } } } } },
+        include: { rack: true, room: true, ports: { select: { status: true, linkedPortId: true, connection: { select: { id: true } } } } },
       }),
       this.structure.locationPaths(),
     ]);
@@ -84,7 +93,7 @@ export class SwitchesController {
     const [sw, paths] = await Promise.all([
       this.prisma.switch.findUnique({
         where: { id },
-        include: { rack: true, room: true, ports: { orderBy: { number: 'asc' }, include: { connection: { include: connectionInclude } } } },
+        include: { rack: true, room: true, ports: { orderBy: { number: 'asc' }, include: { ...uplinkInclude, connection: { include: connectionInclude } } } },
       }),
       this.structure.locationPaths(),
     ]);
@@ -98,9 +107,10 @@ export class SwitchesController {
         id: p.id,
         number: p.number,
         storedStatus: p.status,
-        status: effectivePortStatus(p.status, Boolean(connection)),
+        status: effectivePortStatus(p.status, Boolean(connection || p.linkedPort)),
         notes: p.notes,
         trace: connection ? this.connections.toTrace(connection, paths) : null,
+        uplink: uplinkSummary(p),
       })),
     };
   }
@@ -146,15 +156,16 @@ export class SwitchesController {
 
   @Get(':id/ports/:number')
   async port(@Param('id') id: string, @Param('number', ParseIntPipe) number: number) {
-    const port = await this.prisma.switchPort.findUnique({ where: { switchId_number: { switchId: id, number } }, include: { connection: true } });
+    const port = await this.prisma.switchPort.findUnique({ where: { switchId_number: { switchId: id, number } }, include: { ...uplinkInclude, connection: true } });
     if (!port) throw new NotFoundException('Porta não encontrada');
     return {
       id: port.id,
       number: port.number,
       storedStatus: port.status,
-      status: effectivePortStatus(port.status, Boolean(port.connection)),
+      status: effectivePortStatus(port.status, Boolean(port.connection || port.linkedPort)),
       notes: port.notes,
       trace: await this.connections.trace({ switchPortId: port.id }),
+      uplink: uplinkSummary(port),
     };
   }
 
@@ -172,6 +183,11 @@ export class SwitchesController {
 
     if (dto.networkPointId !== undefined && (dto.networkPointId || null) !== (port.connection?.networkPointId ?? null)) {
       await this.connections.linkSwitchPort(port.id, dto.networkPointId || null, me);
+    }
+    if (dto.linkedSwitchId !== undefined) {
+      const target = dto.linkedSwitchId ? await this.connections.resolveSwitchPort(dto.linkedSwitchId, dto.linkedPortNumber ?? null) : null;
+      if (dto.linkedSwitchId && !target) throw new BadRequestException('Informe a porta do outro switch');
+      if ((target ?? null) !== port.linkedPortId) await this.connections.linkUplink(port.id, target ?? null, me);
     }
     if (dto.status && dto.status !== port.status) {
       await this.prisma.switchPort.update({ where: { id: port.id }, data: { status: dto.status } });

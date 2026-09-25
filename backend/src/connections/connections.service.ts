@@ -227,6 +227,60 @@ export class ConnectionsService {
     });
   }
 
+  /**
+   * Liga (ou desliga, com targetPortId = null) duas portas de switches diferentes — o cabo
+   * de comunicação entre switches. O vínculo é gravado nos dois lados; se alguma das portas
+   * já tinha outro uplink, ele é desfeito.
+   */
+  async linkUplink(portId: string, targetPortId: string | null, user: AuthUser | null) {
+    return this.prisma.$transaction(async (tx) => {
+      const portInclude = { switch: true, connection: { include: { networkPoint: true } } } as const;
+      const port = await tx.switchPort.findUnique({ where: { id: portId }, include: portInclude });
+      if (!port) throw new NotFoundException('Porta não encontrada');
+      const label = switchPortLabel(port.switch.name, port.number);
+
+      if (targetPortId) {
+        const target = await tx.switchPort.findUnique({ where: { id: targetPortId }, include: portInclude });
+        if (!target) throw new NotFoundException('Porta do outro switch não encontrada');
+        if (target.switchId === port.switchId) throw new BadRequestException('O uplink precisa ligar dois switches diferentes');
+        for (const p of [port, target]) {
+          if (p.connection) {
+            throw new BadRequestException(`${switchPortLabel(p.switch.name, p.number)} está ligada ao ponto ${p.connection.networkPoint.code}. Desconecte o ponto antes.`);
+          }
+        }
+        await this.unlinkUplink(tx, port.id, user);
+        await this.unlinkUplink(tx, target.id, user);
+        await tx.switchPort.update({ where: { id: port.id }, data: { linkedPortId: target.id } });
+        await tx.switchPort.update({ where: { id: target.id }, data: { linkedPortId: port.id } });
+        // Porta reservada que recebe uplink deixa de ser reserva
+        await tx.switchPort.updateMany({ where: { id: { in: [port.id, target.id] }, status: 'RESERVED' }, data: { status: 'AVAILABLE' } });
+
+        const targetLabel = switchPortLabel(target.switch.name, target.number);
+        for (const [p, a, b] of [[port, label, targetLabel], [target, targetLabel, label]] as const) {
+          await this.history.log(user, {
+            entityType: 'Switch', entityId: p.switchId, entityLabel: a, action: 'CONNECT', field: 'Uplink', newValue: b,
+          }, tx);
+        }
+      } else {
+        await this.unlinkUplink(tx, port.id, user);
+      }
+    });
+  }
+
+  private async unlinkUplink(tx: Prisma.TransactionClient, portId: string, user: AuthUser | null) {
+    const port = await tx.switchPort.findUnique({ where: { id: portId }, include: { switch: true, linkedPort: { include: { switch: true } } } });
+    const other = port?.linkedPort;
+    if (!port || !other) return;
+    await tx.switchPort.updateMany({ where: { id: { in: [port.id, other.id] } }, data: { linkedPortId: null } });
+    const label = switchPortLabel(port.switch.name, port.number);
+    const otherLabel = switchPortLabel(other.switch.name, other.number);
+    for (const [p, a, b] of [[port, label, otherLabel], [other, otherLabel, label]] as const) {
+      await this.history.log(user, {
+        entityType: 'Switch', entityId: p.switchId, entityLabel: a, action: 'DISCONNECT', field: 'Uplink', previousValue: b, newValue: null,
+      }, tx);
+    }
+  }
+
   private async linkIn(tx: Prisma.TransactionClient, pointId: string, input: LinkInput, user: AuthUser | null) {
     const point = await tx.networkPoint.findUnique({ where: { id: pointId } });
     if (!point) throw new NotFoundException('Ponto de rede não encontrado');
@@ -260,8 +314,10 @@ export class ConnectionsService {
     const cableChanged = input.cableLabel !== undefined && (input.cableLabel || null) !== (current?.cableLabel ?? null);
     if (!Object.keys(changes).length && !cableChanged) return current;
 
-    // Porta reservada que recebe conexão deixa de ser reserva
     if (changes.switchPortId) {
+      const uplink = await tx.switchPort.findUnique({ where: { id: changes.switchPortId }, select: { linkedPortId: true } });
+      if (uplink?.linkedPortId) throw new BadRequestException('Esta porta é um uplink para outro switch. Desfaça o uplink antes de ligar um ponto.');
+      // Porta reservada que recebe conexão deixa de ser reserva
       await tx.switchPort.updateMany({ where: { id: changes.switchPortId, status: 'RESERVED' }, data: { status: 'AVAILABLE' } });
     }
 
@@ -319,12 +375,12 @@ export class ConnectionsService {
   async resizePorts(tx: Prisma.TransactionClient, kind: 'switch' | 'patchPanel', ownerId: string, count: number) {
     const model: any = kind === 'switch' ? tx.switchPort : tx.patchPanelPort;
     const ownerKey = kind === 'switch' ? 'switchId' : 'patchPanelId';
-    const existing: { number: number; connection: { id: string } | null }[] = await model.findMany({
+    const existing: { number: number; connection: { id: string } | null; linkedPortId?: string | null }[] = await model.findMany({
       where: { [ownerKey]: ownerId },
-      select: { number: true, connection: { select: { id: true } } },
+      select: { number: true, connection: { select: { id: true } }, ...(kind === 'switch' ? { linkedPortId: true } : {}) },
     });
     const numbers = new Set(existing.map((p) => p.number));
-    const busy = existing.filter((p) => p.number > count && p.connection).map((p) => p.number);
+    const busy = existing.filter((p) => p.number > count && (p.connection || p.linkedPortId)).map((p) => p.number);
     if (busy.length) {
       throw new BadRequestException(`Não é possível reduzir: as portas ${busy.join(', ')} estão conectadas`);
     }

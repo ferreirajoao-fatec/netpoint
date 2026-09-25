@@ -104,5 +104,9 @@ export const saveEntity = <T>(resource: string, id: string | undefined, body: T)
 
 export const deleteEntity = (resource: string, id: string) => api(`/${resource}/${id}`, { method: 'DELETE' });
 
-export const updatePort = (switchId: string, number: number, body: Partial<Pick<SwitchPort, 'status' | 'notes'>> & { networkPointId?: string | null }) =>
+export const updatePort = (switchId: string, number: number, body: Partial<Pick<SwitchPort, 'status' | 'notes'>> & {
+  networkPointId?: string | null;
+  linkedSwitchId?: string | null;
+  linkedPortNumber?: number | null;
+}) =>
   api<SwitchPort>(`/switches/${switchId}/ports/${number}`, { method: 'PATCH', body });
